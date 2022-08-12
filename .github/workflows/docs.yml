@@ -1,0 +1,41 @@
+name: docs
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+          submodules: true
+      - name: Run apt-get
+        run: |
+          set -x
+          sudo apt-get -y update
+          sudo apt-get -y install doxygen graphviz mscgen dia
+      - name: Build docs
+        run: |
+          set -x
+          cd include && doxygen ../doc/Doxyfile
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+          submodules: true
+          repository: ${{ github.repository_owner }}/tqfx.github.io
+          path: _/${{ github.repository_owner }}
+      - name: Update docs
+        run: |
+          set -x
+          rm -rf _/${{ github.repository }}
+          mv build/html _/${{ github.repository }}
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          commit_message: ${{ github.event.head_commit.message }}
+          external_repository: ${{ github.repository_owner }}/tqfx.github.io
+          publish_dir: _/${{ github.repository_owner }}
