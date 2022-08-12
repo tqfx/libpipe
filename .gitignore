@@ -1,0 +1,80 @@
+# Prerequisites
+*.d
+
+# Object files
+*.obj
+*.lo
+*.o
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Static libraries
+*.lib
+*.la
+*.a
+
+# Compiled Dynamic libraries
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+*.egg-info/
+install/
+target/
+build/
+dist/
+
+# MacOS Cache
+.DS_Store
+
+# Visual Studio Code
+.vscode
+
+# clangd
+.cache
+
+# CMake
+install[_-]*
+build[_-]*
+
+# Xmake
+.xmake
+
+# Rust
+Cargo.lock
+
+# pipenv
+Pipfile.lock
+
+# Doxygen
+*.log
+latex
+html
