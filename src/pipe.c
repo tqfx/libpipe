@@ -12,7 +12,6 @@
 #include "pipe.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #if defined(_WIN32)
@@ -221,15 +220,6 @@ exit:
     return line;
 }
 
-void pipe_line_free(void *line)
-{
-#if defined(_WIN32)
-    LocalFree(line);
-#else /* !_WIN32 */
-    free(line);
-#endif /* _WIN32 */
-}
-
 char *pipe_line_envp(char *const envp[])
 {
     char *line = NULL;
@@ -292,6 +282,15 @@ char *pipe_line_envp(char *const envp[])
 #endif /* _WIN32 */
 exit:
     return line;
+}
+
+void pipe_line_free(void *line)
+{
+#if defined(_WIN32)
+    LocalFree(line);
+#else /* !_WIN32 */
+    free(line);
+#endif /* _WIN32 */
 }
 
 int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std)

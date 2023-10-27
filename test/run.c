@@ -12,7 +12,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <limits.h>
 #if defined(_WIN32)
 #include <Windows.h>
 #else /* !_WIN32 */
