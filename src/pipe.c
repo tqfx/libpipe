@@ -442,40 +442,40 @@ int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const env
         if (std & PIPE_IN)
         {
             close(pipe_in[W]);
+            int ok = dup2(pipe_in[R], STDIN_FILENO);
             if (pipe_in[R] != STDIN_FILENO)
             {
-                int ok = dup2(pipe_in[R], STDIN_FILENO);
                 close(pipe_in[R]);
-                if (ok < 0)
-                {
-                    _exit(EXIT_FAILURE);
-                }
+            }
+            if (ok < 0)
+            {
+                _exit(EXIT_FAILURE);
             }
         }
         if (std & PIPE_OUT)
         {
             close(pipe_out[R]);
+            int ok = dup2(pipe_out[W], STDOUT_FILENO);
             if (pipe_out[W] != STDOUT_FILENO)
             {
-                int ok = dup2(pipe_out[W], STDOUT_FILENO);
                 close(pipe_out[W]);
-                if (ok < 0)
-                {
-                    _exit(EXIT_FAILURE);
-                }
+            }
+            if (ok < 0)
+            {
+                _exit(EXIT_FAILURE);
             }
         }
         if (std & PIPE_ERR)
         {
             close(pipe_err[R]);
+            int ok = dup2(pipe_err[W], STDERR_FILENO);
             if (pipe_err[W] != STDERR_FILENO)
             {
-                int ok = dup2(pipe_err[W], STDERR_FILENO);
                 close(pipe_err[W]);
-                if (ok < 0)
-                {
-                    _exit(EXIT_FAILURE);
-                }
+            }
+            if (ok < 0)
+            {
+                _exit(EXIT_FAILURE);
             }
         }
 
