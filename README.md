@@ -10,22 +10,24 @@ int main(int argc, char *argv[])
 #else /* !_WIN32 */
     const char *path = "/bin/ls";
 #endif /* _WIN32 */
-    char *argV[] = {"ls", "-Ahl", "--color", NULL};
+    char *args[] = {"ls", "-Ahl", "--color", NULL};
     const char *cwd = argc > 1 ? argv[argc - 1] : NULL;
 
     pipe_s ctx[1];
 
-    if (pipe_open(ctx, path, argV, NULL, cwd, PIPE_IO))
+    if (pipe_open(ctx, path, args, NULL, cwd, PIPE_OUT))
     {
         fprintf(stderr, "Initialization failure!\n");
     }
 
     if (pipe_mode(ctx) & PIPE_OUT)
     {
-        printf("stdout:\n");
-        for (int c = pipe_getc(ctx); c != EOF; c = pipe_getc(ctx))
+        char buffer[BUFSIZ];
+        size_t n = pipe_read(ctx, buffer, BUFSIZ);
+        while (n)
         {
-            fputc(c, stdout);
+            printf("%.*s", (int)n, buffer);
+            n = pipe_read(ctx, buffer, BUFSIZ);
         }
     }
 

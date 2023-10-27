@@ -33,11 +33,6 @@
 #define PIPE_PUBLIC
 #endif /* PIPE_PUBLIC */
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpadded"
-#endif /* __GNUC__ || __clang__ */
-
 /*!
  @brief instance structure for pipeline
 */
@@ -47,15 +42,17 @@ typedef struct pipe_s
     FILE *out; //!< only read
     FILE *err; //!< only read
 #if defined(_WIN32)
-    PROCESS_INFORMATION *pid;
+    PROCESS_INFORMATION _pid;
+    HANDLE _in; //!< only write
+    HANDLE _out; //!< only read
+    HANDLE _err; //!< only read
 #else /* !_WIN32 */
-    pid_t pid;
+    pid_t _pid;
+    int _in; //!< only write
+    int _out; //!< only read
+    int _err; //!< only read
 #endif /* _WIN32 */
 } pipe_s;
-
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
-#endif /* __GNUC__ || __clang__ */
 
 typedef enum pipe_e
 {
@@ -75,7 +72,7 @@ extern "C" {
  @param[in,out] ctx points to an instance of pipeline structure
  @param[in] path the filename associated with the file being executed
  @code{.c}
- const char *path = "/bin/ls";
+ char const *path = "/bin/ls";
  @endcode
  @param[in] argv a pointer to the argument block terminated by a NULL pointer
  @code{.c}
@@ -91,7 +88,7 @@ extern "C" {
   @retval ~0 failure
   @retval 0 success
 */
-PIPE_PUBLIC int pipe_open(pipe_s *ctx, const char *path, char *const argv[], char *const envp[], const char *cwd, int std);
+PIPE_PUBLIC int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std);
 
 /*!
  @brief terminate an instance of pipeline structure
@@ -110,7 +107,7 @@ PIPE_PUBLIC int pipe_close(pipe_s *ctx);
   @retval ~0 failure
   @retval 0 success
 */
-PIPE_PUBLIC int pipe_wait(const pipe_s *ctx, unsigned long ms);
+PIPE_PUBLIC int pipe_wait(pipe_s const *ctx, unsigned long ms);
 
 /*!
  @brief convert argv to line, "argv1" "argv2" ... "argvn"
@@ -133,44 +130,69 @@ PIPE_PUBLIC char *pipe_line_envp(char *const envp[]);
 PIPE_PUBLIC void pipe_line_free(void *line);
 
 /*!
+ @brief access standard stream mode for pipeline
+ @param[in] ctx points to an instance of pipeline structure
+*/
+PIPE_PUBLIC int pipe_mode(pipe_s const *ctx);
+
+/*!
  @brief check if pipeline is valid
  @param[in] ctx points to an instance of pipeline structure
   @retval 0 invalid
   @retval !0 valid
 */
-PIPE_PUBLIC int pipe_valid(const pipe_s *ctx);
+PIPE_PUBLIC int pipe_valid(pipe_s const *ctx);
 
 /*!
  @brief flush standard stream for pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC int pipe_flush(const pipe_s *ctx);
+PIPE_PUBLIC int pipe_flush(pipe_s const *ctx);
 
 /*!
- @brief access standard stream mode for pipeline
+ @brief read a block of the standard output of the pipeline
+ @param[in] ctx points to an instance of pipeline structure
+ @param data address of a buffer
+ @param byte length of a buffer
+ @return size of the read data
+*/
+PIPE_PUBLIC size_t pipe_read(pipe_s const *ctx, void *data, size_t byte);
+
+/*!
+ @brief read a block of the standard error output of the pipeline
+ @param[in] ctx points to an instance of pipeline structure
+ @param data address of a buffer
+ @param byte length of a buffer
+ @return size of the read data
+*/
+PIPE_PUBLIC size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte);
+
+/*!
+ @brief write a block of the standard input to the pipeline
+ @param[in] ctx points to an instance of pipeline structure
+ @param data address of a buffer to write to the pipeline
+ @param byte length of a buffer to write to the pipeline
+ @return size of the written data
+*/
+PIPE_PUBLIC size_t pipe_write(pipe_s const *ctx, void const *data, size_t byte);
+
+/*!
+ @brief access a stream pointer to the standard input of the pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC int pipe_mode(const pipe_s *ctx);
+PIPE_PUBLIC FILE *pipe_stdin(pipe_s *ctx);
 
-PIPE_PUBLIC int pipe_getc(const pipe_s *ctx);
+/*!
+ @brief access a stream pointer to the standard output of the pipeline
+ @param[in] ctx points to an instance of pipeline structure
+*/
+PIPE_PUBLIC FILE *pipe_stdout(pipe_s *ctx);
 
-PIPE_PUBLIC int pipe_gete(const pipe_s *ctx);
-
-PIPE_PUBLIC int pipe_putc(const pipe_s *ctx, int c);
-
-PIPE_PUBLIC int pipe_puts(const pipe_s *ctx, const char *str);
-
-PIPE_PUBLIC int pipe_scanf(const pipe_s *ctx, const char *fmt, ...);
-
-PIPE_PUBLIC int pipe_scanfe(const pipe_s *ctx, const char *fmt, ...);
-
-PIPE_PUBLIC int pipe_printf(const pipe_s *ctx, const char *fmt, ...);
-
-PIPE_PUBLIC size_t pipe_read(const pipe_s *ctx, void *data, size_t byte);
-
-PIPE_PUBLIC size_t pipe_reade(const pipe_s *ctx, void *data, size_t byte);
-
-PIPE_PUBLIC size_t pipe_write(const pipe_s *ctx, const void *data, size_t byte);
+/*!
+ @brief access a stream pointer to the standard error output of the pipeline
+ @param[in] ctx points to an instance of pipeline structure
+*/
+PIPE_PUBLIC FILE *pipe_stderr(pipe_s *ctx);
 
 #if defined(__cplusplus)
 } /* extern "C" */

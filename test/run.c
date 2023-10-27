@@ -19,50 +19,35 @@
 #include <unistd.h>
 #endif /* _WIN32 */
 
-static char *path_join(char *path, const char *name)
-{
-    char *cur = path + strlen(path);
-    while (cur != path)
-    {
-        if (*cur == '/' || *cur == '\\')
-        {
-            ++cur;
-            break;
-        }
-        --cur;
-    }
-    strcpy(cur, name);
-    return path;
-}
-
 int main(int argc, char *argv[])
 {
-    size_t n = strtoul(argv[argc - 1], 0, 0);
+    size_t n = strtoul(argv[argc - 1], NULL, 0);
+    if (n == 0)
+    {
+        unsigned long id = 0, addr = 0;
+        for (int i = 0; i != argc; ++i)
+        {
+            printf("%s ", argv[i]);
+        }
+        scanf(" %lu%lx", &id, &addr);
+        printf("[%lu]=0x%lX\n", id, addr);
+#if defined(_WIN32)
+        Sleep(100);
+#else /* !_WIN32 */
+        usleep(100000);
+#endif /* _WIN32 */
+        return 0;
+    }
+
     pipe_s *ctx = (pipe_s *)malloc(sizeof(pipe_s) * n);
-
-    char *line = 0;
-    char buf[BUFSIZ];
-#if defined(_WIN32)
-    GetModuleFileName(NULL, buf, (DWORD)(BUFSIZ - 1));
-#else /* !_WIN32 */
-    readlink("/proc/self/exe", buf, BUFSIZ - 1);
-#endif /* _WIN32 */
-
-#if defined(_WIN32)
-    const char *path = path_join(buf, "sum.exe");
-#else /* !_WIN32 */
-    const char *path = path_join(buf, "sum");
-#endif /* _WIN32 */
-
-    char *args[] = {"sum", "ok", NULL};
+    char *line = pipe_line_envp((char *[]){"/usr/local/bin", "/usr/bin", "/bin", 0});
+    char *args[] = {argv[0], NULL};
     char *envp[] = {NULL};
-
-    line = pipe_line_envp((char *[]){"/usr/local/bin", "/usr/bin", "/bin", 0});
     if (line)
     {
 #if defined(_WIN32)
         printf("path: ");
-        for (const char *str = line; *str;)
+        for (char const *str = line; *str;)
         {
             str += printf("%s ", str);
         }
@@ -82,34 +67,36 @@ int main(int argc, char *argv[])
 
     for (size_t i = 0; i != n; ++i)
     {
-        if (pipe_open(ctx + i, path, args, envp, NULL, PIPE_IO))
+        if (pipe_open(ctx + i, argv[0], args, envp, NULL, PIPE_IO))
         {
-            fprintf(stderr, "Initialization failure!\n");
+            fprintf(stderr, "[%zu] Initialization failure!\n", i);
+            exit(EXIT_FAILURE);
         }
     }
 
     for (size_t i = 0; i != n; ++i)
     {
-        pipe_printf(ctx + i, "%i %zu\n", 1, i);
+        char buffer[BUFSIZ];
+        int size = sprintf(buffer, "%zu %p\n", i, pipe_stdout(ctx + i));
+        pipe_write(ctx + i, buffer, (size_t)size);
         pipe_flush(ctx + i);
-        pipe_wait(ctx + i, 10);
+        pipe_wait(ctx + i, 1);
     }
 
     for (size_t i = 0; i != n; ++i)
     {
-        for (int c = pipe_getc(ctx + i); c != EOF; c = pipe_getc(ctx + i))
+        char buffer[BUFSIZ];
+        size_t size = pipe_read(ctx + i, buffer, BUFSIZ);
+        for (size_t j = 0; buffer[j] != '\n' && j < size; ++j)
         {
-            fputc(c, stdout);
-            if (c == '\n')
-            {
-                break;
-            }
+            putchar(buffer[j]);
         }
+        putchar('\n');
     }
 
     for (size_t i = 0; i != n; ++i)
     {
-        pipe_wait(ctx + i, ULONG_MAX);
+        pipe_wait(ctx + i, 0);
         pipe_close(ctx + i);
     }
 

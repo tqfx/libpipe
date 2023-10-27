@@ -15,124 +15,147 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-
-int pipe_valid(const pipe_s *ctx)
-{
 #if defined(_WIN32)
-    return ctx->pid != NULL;
+#include <io.h>
+#include <strsafe.h>
 #else /* !_WIN32 */
-    return ctx->pid > 0;
+#include <unistd.h>
+#include <sys/wait.h>
 #endif /* _WIN32 */
-}
 
-int pipe_flush(const pipe_s *ctx)
-{
-    int ok = 0;
-    if (ctx->in)
-    {
-        ok += fflush(ctx->in);
-    }
-    if (ctx->out)
-    {
-        ok += fflush(ctx->out);
-    }
-    if (ctx->err)
-    {
-        ok += fflush(ctx->err);
-    }
-    return ok;
-}
-
-int pipe_mode(const pipe_s *ctx)
+int pipe_mode(pipe_s const *ctx)
 {
     int status = 0;
-    if (ctx->in)
+    if (ctx->_in)
     {
         status |= PIPE_IN;
     }
-    if (ctx->out)
+    if (ctx->_out)
     {
         status |= PIPE_OUT;
     }
-    if (ctx->err)
+    if (ctx->_err)
     {
         status |= PIPE_ERR;
     }
     return status;
 }
 
-int pipe_getc(const pipe_s *ctx)
+int pipe_valid(pipe_s const *ctx)
 {
-    return fgetc(ctx->out);
+#if defined(_WIN32)
+    return ctx->_pid.hProcess != NULL;
+#else /* !_WIN32 */
+    return ctx->_pid > ~0;
+#endif /* _WIN32 */
 }
 
-int pipe_gete(const pipe_s *ctx)
+int pipe_flush(pipe_s const *ctx)
 {
-    return fgetc(ctx->err);
+    int ok = 0;
+#if defined(_WIN32)
+    if (ctx->_in)
+    {
+        FlushFileBuffers(ctx->_in);
+    }
+    if (ctx->_out)
+    {
+        FlushFileBuffers(ctx->_out);
+    }
+    if (ctx->_err)
+    {
+        FlushFileBuffers(ctx->_err);
+    }
+#else /* !_WIN32 */
+    if (ctx->_in > ~0)
+    {
+        fsync(ctx->_in);
+    }
+    if (ctx->_out > ~0)
+    {
+        fsync(ctx->_out);
+    }
+    if (ctx->_err > ~0)
+    {
+        fsync(ctx->_err);
+    }
+#endif /* _WIN32 */
+    return ok;
 }
 
-int pipe_putc(const pipe_s *ctx, int c)
+size_t pipe_read(pipe_s const *ctx, void *data, size_t byte)
 {
-    return fputc(c, ctx->in);
+#if defined(_WIN32)
+    DWORD size = 0;
+    ReadFile(ctx->_out, data, byte, &size, NULL);
+    return (size_t)size;
+#else /* !_WIN32 */
+    ssize_t size = read(ctx->_out, data, byte);
+    return size > ~0 ? (size_t)size : 0;
+#endif /* _WIN32 */
 }
 
-int pipe_puts(const pipe_s *ctx, const char *str)
+size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte)
 {
-    return fputs(str, ctx->in);
+#if defined(_WIN32)
+    DWORD size = 0;
+    ReadFile(ctx->_err, data, byte, &size, NULL);
+    return (size_t)size;
+#else /* !_WIN32 */
+    ssize_t size = read(ctx->_err, data, byte);
+    return size > ~0 ? (size_t)size : 0;
+#endif /* _WIN32 */
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-#endif /* __GNUC__ || __clang__ */
-
-int pipe_scanf(const pipe_s *ctx, const char *fmt, ...)
+size_t pipe_write(pipe_s const *ctx, void const *data, size_t byte)
 {
-    int stats;
-    va_list va;
-    va_start(va, fmt);
-    stats = vfscanf(ctx->out, fmt, va);
-    va_end(va);
-    return stats;
+#if defined(_WIN32)
+    DWORD size = 0;
+    WriteFile(ctx->_in, data, byte, &size, NULL);
+    return (size_t)size;
+#else /* !_WIN32 */
+    ssize_t size = write(ctx->_in, data, byte);
+    return size > ~0 ? (size_t)size : 0;
+#endif /* _WIN32 */
 }
 
-int pipe_scanfe(const pipe_s *ctx, const char *fmt, ...)
+FILE *pipe_stdin(pipe_s *ctx)
 {
-    int stats;
-    va_list va;
-    va_start(va, fmt);
-    stats = vfscanf(ctx->err, fmt, va);
-    va_end(va);
-    return stats;
+    if (ctx->in == NULL)
+    {
+#if defined(_WIN32)
+        ctx->in = _fdopen(_open_osfhandle((intptr_t)ctx->_in, _O_BINARY | _O_WRONLY), "wb");
+#else /* !_WIN32 */
+        ctx->in = fdopen(ctx->_in, "wb");
+#endif /* _WIN32 */
+    }
+    return ctx->in;
 }
 
-int pipe_printf(const pipe_s *ctx, const char *fmt, ...)
+FILE *pipe_stdout(pipe_s *ctx)
 {
-    int stats;
-    va_list va;
-    va_start(va, fmt);
-    stats = vfprintf(ctx->in, fmt, va);
-    va_end(va);
-    return stats;
+    if (ctx->out == NULL)
+    {
+#if defined(_WIN32)
+        ctx->out = _fdopen(_open_osfhandle((intptr_t)ctx->_out, _O_BINARY | _O_RDONLY), "rb");
+#else /* !_WIN32 */
+        ctx->out = fdopen(ctx->_out, "rb");
+#endif /* _WIN32 */
+    }
+    return ctx->out;
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
-#endif /* __GNUC__ || __clang__ */
-
-size_t pipe_read(const pipe_s *ctx, void *data, size_t byte)
+FILE *pipe_stderr(pipe_s *ctx)
 {
-    return fread(data, 1, byte, ctx->out);
-}
-
-size_t pipe_reade(const pipe_s *ctx, void *data, size_t byte)
-{
-    return fread(data, 1, byte, ctx->err);
-}
-
-size_t pipe_write(const pipe_s *ctx, const void *data, size_t byte)
-{
-    return fwrite(data, 1, byte, ctx->in);
+    if (ctx->err == NULL)
+    {
+#if defined(_WIN32)
+        ctx->err = _fdopen(_open_osfhandle((intptr_t)ctx->_err, _O_BINARY | _O_RDONLY), "rb");
+#else /* !_WIN32 */
+        ctx->err = fdopen(ctx->_err, "rb");
+#endif /* _WIN32 */
+    }
+    return ctx->err;
 }
 
 char *pipe_line_argv(char *const argv[])
@@ -148,7 +171,7 @@ char *pipe_line_argv(char *const argv[])
 
     for (char *const *strv = argv; *strv; ++strv)
     {
-        for (const char *str = *strv; *str; ++str)
+        for (char const *str = *strv; *str; ++str)
         {
             if (*str != '"')
             {
@@ -177,7 +200,7 @@ char *pipe_line_argv(char *const argv[])
     for (char *const *strv = argv; *strv; ++strv)
     {
         line[cur++] = '"';
-        for (const char *str = *strv; *str; ++str)
+        for (char const *str = *strv; *str; ++str)
         {
             if (*str != '"')
             {
@@ -207,16 +230,12 @@ void pipe_line_free(void *line)
 #endif /* _WIN32 */
 }
 
-#if defined(_WIN32)
-
-#include <io.h>
-#include <strsafe.h>
-
 char *pipe_line_envp(char *const envp[])
 {
-    size_t cur = 0;
-    size_t size = 1;
     char *line = NULL;
+    size_t cur = 0;
+#if defined(_WIN32)
+    size_t size = 1;
 
     if (envp == NULL || *envp == NULL)
     {
@@ -243,175 +262,8 @@ char *pipe_line_envp(char *const envp[])
         cur += (size_t)lstrlen(*strv) + 1;
     }
     line[cur] = 0;
-
-exit:
-    return line;
-}
-
-int pipe_open(pipe_s *ctx, const char *path, char *const argv[], char *const envp[], const char *cwd, int std)
-{
-    int ok = ~0;
-    ctx->in = NULL;
-    ctx->out = NULL;
-    ctx->err = NULL;
-
-    // Set up members of the PROCESS_INFORMATION structure.
-    ctx->pid = (PROCESS_INFORMATION *)LocalAlloc(LMEM_ZEROINIT, sizeof(PROCESS_INFORMATION));
-
-    // Set the bInheritHandle flag so pipe handles are inherited.
-    SECURITY_ATTRIBUTES saAttr = {
-        .nLength = sizeof(SECURITY_ATTRIBUTES),
-        .lpSecurityDescriptor = NULL,
-        .bInheritHandle = TRUE,
-    };
-
-    HANDLE hChildStdinRd = GetStdHandle(STD_INPUT_HANDLE);
-    if (std & PIPE_IN)
-    {
-        HANDLE hChildStdinWr = NULL;
-        // Create a pipe for the child process's STDIN.
-        CreatePipe(&hChildStdinRd, &hChildStdinWr, &saAttr, 0);
-        // Ensure the write handle to the pipe for STDIN is not inherited.
-        SetHandleInformation(hChildStdinWr, HANDLE_FLAG_INHERIT, 0);
-        ctx->in = _fdopen(_open_osfhandle((intptr_t)hChildStdinWr, O_BINARY), "w");
-    }
-
-    HANDLE hChildStdoutWr = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (std & PIPE_OUT)
-    {
-        HANDLE hChildStdoutRd = NULL;
-        // Create a pipe for the child process's STDOUT.
-        CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0);
-        // Ensure the read handle to the pipe for STDOUT is not inherited.
-        SetHandleInformation(hChildStdoutRd, HANDLE_FLAG_INHERIT, 0);
-        ctx->out = _fdopen(_open_osfhandle((intptr_t)hChildStdoutRd, O_BINARY), "r");
-    }
-
-    HANDLE hChildStderrWr = GetStdHandle(STD_ERROR_HANDLE);
-    if (std & PIPE_ERR)
-    {
-        HANDLE hChildStderrRd = NULL;
-        // Create a pipe for the child process's STDERR.
-        CreatePipe(&hChildStderrRd, &hChildStderrWr, &saAttr, 0);
-        // Ensure the read handle to the pipe for STDERR is not inherited.
-        SetHandleInformation(hChildStderrRd, HANDLE_FLAG_INHERIT, 0);
-        ctx->err = _fdopen(_open_osfhandle((intptr_t)hChildStderrRd, O_BINARY), "r");
-    }
-
-    // Set up members of the STARTUPINFO structure.
-    STARTUPINFO siStartInfo = {0};
-    siStartInfo.cb = sizeof(STARTUPINFO);
-    siStartInfo.hStdInput = hChildStdinRd;
-    siStartInfo.hStdOutput = hChildStdoutWr;
-    siStartInfo.hStdError = hChildStderrWr;
-    siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
-
-    // Convert argv and envp to line
-    LPSTR Argv = pipe_line_argv(argv);
-    LPSTR Envp = pipe_line_envp(envp);
-
-    // Create the child process.
-    if (CreateProcess(path,
-                      Argv,
-                      NULL,
-                      NULL,
-                      TRUE,
-                      0,
-                      Envp,
-                      cwd,
-                      &siStartInfo,
-                      ctx->pid))
-    {
-        // Close handles to its primary thread.
-        CloseHandle(ctx->pid->hThread);
-        ok = 0;
-    }
-
-    // Free line for argv and envp
-    pipe_line_free(Argv);
-    pipe_line_free(Envp);
-
-    if (std & PIPE_IN)
-    {
-        // Close handles to the stdin pipes.
-        CloseHandle(hChildStdinRd);
-    }
-    if (std & PIPE_OUT)
-    {
-        // Close handles to the stdout pipes.
-        CloseHandle(hChildStdoutWr);
-    }
-    if (std & PIPE_ERR)
-    {
-        // Close handles to the stderr pipes.
-        CloseHandle(hChildStderrWr);
-    }
-
-    return ok;
-}
-
-int pipe_close(pipe_s *ctx)
-{
-    DWORD status = 0;
-
-    if (ctx->pid == NULL)
-    {
-        errno = ECHILD;
-        return ~0;
-    }
-
-    if (ctx->in && fclose(ctx->in) == EOF)
-    {
-        clearerr(ctx->in);
-    }
-    ctx->in = NULL;
-
-    if (ctx->out && fclose(ctx->out) == EOF)
-    {
-        clearerr(ctx->out);
-    }
-    ctx->out = NULL;
-
-    if (ctx->err && fclose(ctx->err) == EOF)
-    {
-        clearerr(ctx->err);
-    }
-    ctx->err = NULL;
-
-    CloseHandle(ctx->pid->hProcess);
-
-    GetExitCodeProcess(ctx->pid->hProcess, &status);
-
-    LocalFree(ctx->pid);
-    ctx->pid = NULL;
-
-    return (int)status;
-}
-
-int pipe_wait(const pipe_s *ctx, unsigned long ms)
-{
-    switch (WaitForSingleObject(ctx->pid->hProcess, ms ? ms : INFINITE))
-    {
-    case WAIT_OBJECT_0:
-        return 0;
-    case WAIT_TIMEOUT:
-        errno = ETIMEDOUT;
-        return ~0;
-    default:
-        return ~1;
-    }
-}
-
 #else /* !_WIN32 */
-
-#include <unistd.h>
-#include <sys/wait.h>
-
-char *pipe_line_envp(char *const envp[])
-{
-    size_t cur = 0;
     size_t size = 0;
-    char *line = NULL;
 
     if (envp == NULL || *envp == NULL)
     {
@@ -437,20 +289,115 @@ char *pipe_line_envp(char *const envp[])
         line[cur] = ':';
     }
     line[cur - 1] = 0;
-
+#endif /* _WIN32 */
 exit:
     return line;
 }
 
+int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std)
+{
+#if defined(_WIN32)
+    int ok = ~0;
+
+    // Set up members of the pipe_s structure.
+    memset(ctx, 0, sizeof(*ctx));
+
+    // Set the bInheritHandle flag so pipe handles are inherited.
+    SECURITY_ATTRIBUTES saAttr = {
+        .nLength = sizeof(SECURITY_ATTRIBUTES),
+        .lpSecurityDescriptor = NULL,
+        .bInheritHandle = TRUE,
+    };
+
+    HANDLE hChildStdinRd = GetStdHandle(STD_INPUT_HANDLE);
+    if (std & PIPE_IN)
+    {
+        // Create a pipe for the child process's STDIN.
+        CreatePipe(&hChildStdinRd, &ctx->_in, &saAttr, 0);
+        // Ensure the write handle to the pipe for STDIN is not inherited.
+        SetHandleInformation(ctx->_in, HANDLE_FLAG_INHERIT, 0);
+    }
+
+    HANDLE hChildStdoutWr = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (std & PIPE_OUT)
+    {
+        // Create a pipe for the child process's STDOUT.
+        CreatePipe(&ctx->_out, &hChildStdoutWr, &saAttr, 0);
+        // Ensure the read handle to the pipe for STDOUT is not inherited.
+        SetHandleInformation(ctx->_out, HANDLE_FLAG_INHERIT, 0);
+    }
+
+    HANDLE hChildStderrWr = GetStdHandle(STD_ERROR_HANDLE);
+    if (std & PIPE_ERR)
+    {
+        // Create a pipe for the child process's STDERR.
+        CreatePipe(&ctx->_err, &hChildStderrWr, &saAttr, 0);
+        // Ensure the read handle to the pipe for STDERR is not inherited.
+        SetHandleInformation(ctx->_err, HANDLE_FLAG_INHERIT, 0);
+    }
+
+    // Set up members of the STARTUPINFO structure.
+    STARTUPINFO siStartInfo = {0};
+    siStartInfo.cb = sizeof(STARTUPINFO);
+    siStartInfo.hStdInput = hChildStdinRd;
+    siStartInfo.hStdOutput = hChildStdoutWr;
+    siStartInfo.hStdError = hChildStderrWr;
+    siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+    // Convert argv and envp to line
+    LPSTR args = pipe_line_argv(argv);
+    LPSTR envs = pipe_line_envp(envp);
+
+    // Create the child process.
+    if (CreateProcess(path,
+                      args,
+                      NULL,
+                      NULL,
+                      TRUE,
+                      0,
+                      envs,
+                      cwd,
+                      &siStartInfo,
+                      &ctx->_pid))
+    {
+        // Close handles to its primary thread.
+        CloseHandle(ctx->_pid.hThread);
+        ctx->_pid.hThread = NULL;
+        ctx->_pid.dwThreadId = 0;
+        ok = 0;
+    }
+
+    // Free line for argv and envp
+    pipe_line_free(args);
+    pipe_line_free(envs);
+
+    if (std & PIPE_IN)
+    {
+        // Close handles to the stdin pipes.
+        CloseHandle(hChildStdinRd);
+    }
+    if (std & PIPE_OUT)
+    {
+        // Close handles to the stdout pipes.
+        CloseHandle(hChildStdoutWr);
+    }
+    if (std & PIPE_ERR)
+    {
+        // Close handles to the stderr pipes.
+        CloseHandle(hChildStderrWr);
+    }
+
+    return ok;
+#else /* !_WIN32 */
 #define R 0
 #define W 1
-
-int pipe_open(pipe_s *ctx, const char *path, char *const argv[], char *const envp[], const char *cwd, int std)
-{
-    ctx->in = 0;
-    ctx->out = 0;
-    ctx->err = 0;
-    ctx->pid = ~0;
+    ctx->_in = ~0;
+    ctx->_out = ~0;
+    ctx->_err = ~0;
+    ctx->_pid = ~0;
+    ctx->in = NULL;
+    ctx->out = NULL;
+    ctx->err = NULL;
 
     /* create stdin pipes */
     int pipe_in[2];
@@ -481,13 +428,13 @@ int pipe_open(pipe_s *ctx, const char *path, char *const argv[], char *const env
     }
 
     /* create a child process */
-    ctx->pid = fork();
-    if (ctx->pid < 0)
+    ctx->_pid = fork();
+    if (ctx->_pid < 0)
     {
         goto pipe_std;
     }
 
-    if (ctx->pid == 0)
+    if (ctx->_pid == 0)
     {
         if (cwd)
         {
@@ -540,20 +487,19 @@ int pipe_open(pipe_s *ctx, const char *path, char *const argv[], char *const env
 
     if (std & PIPE_IN)
     {
-        ctx->in = fdopen(pipe_in[W], "w");
+        ctx->_in = pipe_in[W];
         close(pipe_in[R]);
     }
     if (std & PIPE_OUT)
     {
-        ctx->out = fdopen(pipe_out[R], "r");
+        ctx->_out = pipe_out[R];
         close(pipe_out[W]);
     }
     if (std & PIPE_ERR)
     {
-        ctx->err = fdopen(pipe_err[R], "r");
+        ctx->_err = pipe_err[R];
         close(pipe_err[W]);
     }
-
     return 0;
 
 pipe_std:
@@ -576,43 +522,74 @@ pipe_out:
     }
 pipe_in:
     return ~0;
-}
-
 #undef R
 #undef W
+#endif /* _WIN32 */
+}
 
 int pipe_close(pipe_s *ctx)
 {
-    int status = 0;
+#if defined(_WIN32)
+    DWORD status = 0;
 
-    if (ctx->pid < 0)
+    if (ctx->_pid.hProcess == NULL)
     {
         errno = ECHILD;
         return ~0;
     }
 
-    if (ctx->in && fclose(ctx->in) == EOF)
+    if (ctx->_in)
     {
-        clearerr(ctx->in);
+        CloseHandle(ctx->_in);
+        ctx->_in = NULL;
     }
-    ctx->in = 0;
-    if (ctx->out && fclose(ctx->out) == EOF)
+    if (ctx->_out)
     {
-        clearerr(ctx->out);
+        CloseHandle(ctx->_out);
+        ctx->_out = NULL;
     }
-    ctx->out = 0;
-    if (ctx->err && fclose(ctx->err) == EOF)
+    if (ctx->_err)
     {
-        clearerr(ctx->err);
+        CloseHandle(ctx->_err);
+        ctx->_err = NULL;
     }
-    ctx->err = 0;
+
+    CloseHandle(ctx->_pid.hProcess);
+    GetExitCodeProcess(ctx->_pid.hProcess, &status);
+    ctx->_pid.hProcess = NULL;
+    ctx->_pid.dwProcessId = 0;
+    return (int)status;
+#else /* !_WIN32 */
+    int status = 0;
+
+    if (ctx->_pid < 0)
+    {
+        errno = ECHILD;
+        return ~0;
+    }
+
+    if (ctx->_in > ~0)
+    {
+        close(ctx->_in);
+        ctx->_in = ~0;
+    }
+    if (ctx->_out > ~0)
+    {
+        close(ctx->_out);
+        ctx->_out = ~0;
+    }
+    if (ctx->_err > ~0)
+    {
+        close(ctx->_err);
+        ctx->_err = ~0;
+    }
 
     /* check if the child process to terminate */
-    while (waitpid(ctx->pid, &status, WNOHANG) == 0)
+    while (waitpid(ctx->_pid, &status, WNOHANG) == 0)
     {
-        kill(ctx->pid, SIGTERM);
+        kill(ctx->_pid, SIGTERM);
     }
-    ctx->pid = ~0;
+    ctx->_pid = ~0;
 
     /* check if the child process terminated normally */
     if (WIFEXITED(status))
@@ -627,17 +604,30 @@ int pipe_close(pipe_s *ctx)
     /* reached only if the process did not terminate normally */
     errno = ECHILD;
     return status;
+#endif /* _WIN32 */
 }
 
-int pipe_wait(const pipe_s *ctx, unsigned long ms)
+int pipe_wait(pipe_s const *ctx, unsigned long ms)
 {
+#if defined(_WIN32)
+    switch (WaitForSingleObject(ctx->_pid.hProcess, ms ? ms : INFINITE))
+    {
+    case WAIT_OBJECT_0:
+        return 0;
+    case WAIT_TIMEOUT:
+        errno = ETIMEDOUT;
+        return ~0;
+    default:
+        return ~1;
+    }
+#else /* !_WIN32 */
     errno = 0;
     int status = 0;
-    pid_t wait = waitpid(ctx->pid, &status, WNOHANG);
+    pid_t wait = waitpid(ctx->_pid, &status, WNOHANG);
     if (wait != 0 || ms == 0)
     {
         /* wait for the child process to terminate */
-        waitpid(ctx->pid, &status, 0);
+        waitpid(ctx->_pid, &status, 0);
         goto exit;
     }
 
@@ -671,6 +661,5 @@ int pipe_wait(const pipe_s *ctx, unsigned long ms)
 
 exit:
     return status;
-}
-
 #endif /* _WIN32 */
+}
