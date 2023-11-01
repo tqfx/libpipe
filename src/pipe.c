@@ -398,6 +398,12 @@ int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const env
     ctx->out = NULL;
     ctx->err = NULL;
 
+    /* check execute permission */
+    if (cwd && access(cwd, X_OK))
+    {
+        goto pipe_in;
+    }
+
     /* create stdin pipes */
     int pipe_in[2];
     if (std & PIPE_IN)
