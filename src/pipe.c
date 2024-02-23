@@ -22,25 +22,16 @@
 #include <sys/wait.h>
 #endif /* _WIN32 */
 
-int pipe_mode(pipe_s const *ctx)
+int pipe_mode(pipe_t const *ctx)
 {
     int status = 0;
-    if (ctx->_in)
-    {
-        status |= PIPE_IN;
-    }
-    if (ctx->_out)
-    {
-        status |= PIPE_OUT;
-    }
-    if (ctx->_err)
-    {
-        status |= PIPE_ERR;
-    }
+    if (ctx->_in) { status |= PIPE_IN; }
+    if (ctx->_out) { status |= PIPE_OUT; }
+    if (ctx->_err) { status |= PIPE_ERR; }
     return status;
 }
 
-int pipe_valid(pipe_s const *ctx)
+int pipe_valid(pipe_t const *ctx)
 {
 #if defined(_WIN32)
     return ctx->_pid.hProcess != NULL;
@@ -49,40 +40,22 @@ int pipe_valid(pipe_s const *ctx)
 #endif /* _WIN32 */
 }
 
-int pipe_flush(pipe_s const *ctx)
+int pipe_flush(pipe_t const *ctx)
 {
     int ok = 0;
 #if defined(_WIN32)
-    if (ctx->_in)
-    {
-        FlushFileBuffers(ctx->_in);
-    }
-    if (ctx->_out)
-    {
-        FlushFileBuffers(ctx->_out);
-    }
-    if (ctx->_err)
-    {
-        FlushFileBuffers(ctx->_err);
-    }
+    if (ctx->_in) { FlushFileBuffers(ctx->_in); }
+    if (ctx->_out) { FlushFileBuffers(ctx->_out); }
+    if (ctx->_err) { FlushFileBuffers(ctx->_err); }
 #else /* !_WIN32 */
-    if (ctx->_in > ~0)
-    {
-        fsync(ctx->_in);
-    }
-    if (ctx->_out > ~0)
-    {
-        fsync(ctx->_out);
-    }
-    if (ctx->_err > ~0)
-    {
-        fsync(ctx->_err);
-    }
+    if (ctx->_in > ~0) { fsync(ctx->_in); }
+    if (ctx->_out > ~0) { fsync(ctx->_out); }
+    if (ctx->_err > ~0) { fsync(ctx->_err); }
 #endif /* _WIN32 */
     return ok;
 }
 
-size_t pipe_read(pipe_s const *ctx, void *data, size_t byte)
+size_t pipe_read(pipe_t const *ctx, void *data, size_t byte)
 {
 #if defined(_WIN32)
     DWORD size = 0;
@@ -94,7 +67,7 @@ size_t pipe_read(pipe_s const *ctx, void *data, size_t byte)
 #endif /* _WIN32 */
 }
 
-size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte)
+size_t pipe_reade(pipe_t const *ctx, void *data, size_t byte)
 {
 #if defined(_WIN32)
     DWORD size = 0;
@@ -106,7 +79,7 @@ size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte)
 #endif /* _WIN32 */
 }
 
-size_t pipe_write(pipe_s const *ctx, void const *data, size_t byte)
+size_t pipe_write(pipe_t const *ctx, void const *data, size_t byte)
 {
 #if defined(_WIN32)
     DWORD size = 0;
@@ -118,7 +91,7 @@ size_t pipe_write(pipe_s const *ctx, void const *data, size_t byte)
 #endif /* _WIN32 */
 }
 
-FILE *pipe_stdin(pipe_s *ctx)
+FILE *pipe_stdin(pipe_t *ctx)
 {
     if (ctx->in == NULL)
     {
@@ -131,7 +104,7 @@ FILE *pipe_stdin(pipe_s *ctx)
     return ctx->in;
 }
 
-FILE *pipe_stdout(pipe_s *ctx)
+FILE *pipe_stdout(pipe_t *ctx)
 {
     if (ctx->out == NULL)
     {
@@ -144,7 +117,7 @@ FILE *pipe_stdout(pipe_s *ctx)
     return ctx->out;
 }
 
-FILE *pipe_stderr(pipe_s *ctx)
+FILE *pipe_stderr(pipe_t *ctx)
 {
     if (ctx->err == NULL)
     {
@@ -162,40 +135,22 @@ char *pipe_line_argv(char *const argv[])
     size_t cur = 0;
     size_t size = 0;
     char *line = NULL;
-
-    if (argv == NULL || *argv == NULL)
-    {
-        goto exit;
-    }
-
+    if (argv == NULL || *argv == NULL) { goto exit; }
     for (char *const *strv = argv; *strv; ++strv)
     {
         for (char const *str = *strv; *str; ++str)
         {
-            if (*str != '"')
-            {
-                ++size;
-            }
-            else
-            {
-                /* \" */
-                size += 2;
-            }
+            if (*str != '"') { ++size; }
+            else { size += 2; /* \" */ }
         }
-        /* " " */
-        size += 3;
+        size += 3; /* " " */
     }
-
 #if defined(_WIN32)
     line = (char *)LocalAlloc(0, size);
 #else /* !_WIN32 */
     line = (char *)malloc(size);
 #endif /* _WIN32 */
-    if (line == NULL)
-    {
-        goto exit;
-    }
-
+    if (line == NULL) { goto exit; }
     for (char *const *strv = argv; *strv; ++strv)
     {
         line[cur++] = '"';
@@ -215,7 +170,6 @@ char *pipe_line_argv(char *const argv[])
         line[cur++] = ' ';
     }
     line[cur - 1] = 0;
-
 exit:
     return line;
 }
@@ -227,21 +181,14 @@ char *pipe_line_envp(char *const envp[])
 #if defined(_WIN32)
     size_t size = 1;
 
-    if (envp == NULL || *envp == NULL)
-    {
-        goto exit;
-    }
-
+    if (envp == NULL || *envp == NULL) { goto exit; }
     for (char *const *strv = envp; *strv; ++strv)
     {
         size += (size_t)lstrlen(*strv) + 1;
     }
 
     line = (char *)LocalAlloc(0, size);
-    if (line == NULL)
-    {
-        goto exit;
-    }
+    if (line == NULL) { goto exit; }
 
     for (char *const *strv = envp; *strv; ++strv)
     {
@@ -255,21 +202,14 @@ char *pipe_line_envp(char *const envp[])
 #else /* !_WIN32 */
     size_t size = 0;
 
-    if (envp == NULL || *envp == NULL)
-    {
-        goto exit;
-    }
-
+    if (envp == NULL || *envp == NULL) { goto exit; }
     for (char *const *strv = envp; *strv; ++strv)
     {
         size += strlen(*strv) + 1;
     }
 
     line = (char *)malloc(size);
-    if (line == NULL)
-    {
-        goto exit;
-    }
+    if (line == NULL) { goto exit; }
 
     for (char *const *strv = envp; *strv; ++strv, ++cur)
     {
@@ -293,7 +233,7 @@ void pipe_line_free(void *line)
 #endif /* _WIN32 */
 }
 
-int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std)
+int pipe_open(pipe_t *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std)
 {
 #if defined(_WIN32)
     int ok = ~0;
@@ -399,52 +339,33 @@ int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const env
     ctx->err = NULL;
 
     /* check execute permission */
-    if (cwd && access(cwd, X_OK))
-    {
-        goto pipe_in;
-    }
+    if (cwd && access(cwd, X_OK)) { goto pipe_in; }
 
     /* create stdin pipes */
     int pipe_in[2];
     if (std & PIPE_IN)
     {
-        if (pipe(pipe_in) < 0)
-        {
-            goto pipe_in;
-        }
+        if (pipe(pipe_in) < 0) { goto pipe_in; }
     }
     /* create stdout pipes */
     int pipe_out[2];
     if (std & PIPE_OUT)
     {
-        if (pipe(pipe_out) < 0)
-        {
-            goto pipe_out;
-        }
+        if (pipe(pipe_out) < 0) { goto pipe_out; }
     }
     /* create stderr pipes */
     int pipe_err[2];
     if (std & PIPE_ERR)
     {
-        if (pipe(pipe_err) < 0)
-        {
-            goto pipe_err;
-        }
+        if (pipe(pipe_err) < 0) { goto pipe_err; }
     }
 
     /* create a child process */
     ctx->_pid = fork();
-    if (ctx->_pid < 0)
-    {
-        goto pipe_std;
-    }
-
+    if (ctx->_pid < 0) { goto pipe_std; }
     if (ctx->_pid == 0)
     {
-        if (cwd)
-        {
-            chdir(cwd);
-        }
+        if (cwd) { chdir(cwd); }
         if (std & PIPE_IN)
         {
             close(pipe_in[W]);
@@ -532,7 +453,7 @@ pipe_in:
 #endif /* _WIN32 */
 }
 
-int pipe_close(pipe_s *ctx)
+int pipe_close(pipe_t *ctx)
 {
 #if defined(_WIN32)
     DWORD status = 0;
@@ -597,22 +518,16 @@ int pipe_close(pipe_s *ctx)
     ctx->_pid = ~0;
 
     /* check if the child process terminated normally */
-    if (WIFEXITED(status))
-    {
-        return WEXITSTATUS(status);
-    }
+    if (WIFEXITED(status)) { return WEXITSTATUS(status); }
     /* check if the child process was terminated by a signal */
-    if (WIFSIGNALED(status))
-    {
-        return WTERMSIG(status);
-    }
+    if (WIFSIGNALED(status)) { return WTERMSIG(status); }
     /* reached only if the process did not terminate normally */
     errno = ECHILD;
     return status;
 #endif /* _WIN32 */
 }
 
-int pipe_wait(pipe_s const *ctx, unsigned long ms)
+int pipe_wait(pipe_t const *ctx, unsigned long ms)
 {
 #if defined(_WIN32)
     switch (WaitForSingleObject(ctx->_pid.hProcess, ms ? ms : INFINITE))

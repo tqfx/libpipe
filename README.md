@@ -13,26 +13,25 @@ int main(int argc, char *argv[])
     char *args[] = {"ls", "-Ahl", "--color", NULL};
     const char *cwd = argc > 1 ? argv[argc - 1] : NULL;
 
-    pipe_s ctx[1];
+    pipe_t ctx;
 
-    if (pipe_open(ctx, path, args, NULL, cwd, PIPE_OUT))
+    if (pipe_open(&ctx, path, args, NULL, cwd, PIPE_OUT))
     {
         fprintf(stderr, "Initialization failure!\n");
     }
 
-    if (pipe_mode(ctx) & PIPE_OUT)
+    if (pipe_mode(&ctx) & PIPE_OUT)
     {
         char buffer[BUFSIZ];
-        size_t n = pipe_read(ctx, buffer, BUFSIZ);
-        while (n)
+        size_t n = pipe_read(&ctx, buffer, BUFSIZ);
+        for (; n; n = pipe_read(&ctx, buffer, BUFSIZ))
         {
             printf("%.*s", (int)n, buffer);
-            n = pipe_read(ctx, buffer, BUFSIZ);
         }
     }
 
-    pipe_wait(ctx, 0);
-    return pipe_close(ctx);
+    pipe_wait(&ctx, 0);
+    return pipe_close(&ctx);
 }
 ```
 

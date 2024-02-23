@@ -36,7 +36,7 @@
 /*!
  @brief instance structure for pipeline
 */
-typedef struct pipe_s
+typedef struct pipe_t
 {
     FILE *in; //!< only write
     FILE *out; //!< only read
@@ -52,7 +52,7 @@ typedef struct pipe_s
     int _out; //!< only read
     int _err; //!< only read
 #endif /* _WIN32 */
-} pipe_s;
+} pipe_t;
 
 typedef enum pipe_e
 {
@@ -60,7 +60,7 @@ typedef enum pipe_e
     PIPE_OUT = (1 << 1), //!< stdout
     PIPE_IO = PIPE_IN | PIPE_OUT,
     PIPE_ERR = (1 << 2), //!< stderr
-    PIPE_STD = PIPE_IO | PIPE_ERR,
+    PIPE_STD = PIPE_IO | PIPE_ERR
 } pipe_e;
 
 #if defined(__cplusplus)
@@ -88,7 +88,7 @@ extern "C" {
   @retval ~0 failure
   @retval 0 success
 */
-PIPE_PUBLIC int pipe_open(pipe_s *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std);
+PIPE_PUBLIC int pipe_open(pipe_t *ctx, char const *path, char *const argv[], char *const envp[], char const *cwd, int std);
 
 /*!
  @brief terminate an instance of pipeline structure
@@ -97,7 +97,7 @@ PIPE_PUBLIC int pipe_open(pipe_s *ctx, char const *path, char *const argv[], cha
   @retval ~0 failure
   @retval 0 success
 */
-PIPE_PUBLIC int pipe_close(pipe_s *ctx);
+PIPE_PUBLIC int pipe_close(pipe_t *ctx);
 
 /*!
  @brief pending within the timeout period specified synchronously
@@ -107,7 +107,7 @@ PIPE_PUBLIC int pipe_close(pipe_s *ctx);
   @retval ~0 failure
   @retval 0 success
 */
-PIPE_PUBLIC int pipe_wait(pipe_s const *ctx, unsigned long ms);
+PIPE_PUBLIC int pipe_wait(pipe_t const *ctx, unsigned long ms);
 
 /*!
  @brief convert argv to line, "argv1" "argv2" ... "argvn"
@@ -133,7 +133,7 @@ PIPE_PUBLIC void pipe_line_free(void *line);
  @brief access standard stream mode for pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC int pipe_mode(pipe_s const *ctx);
+PIPE_PUBLIC int pipe_mode(pipe_t const *ctx);
 
 /*!
  @brief check if pipeline is valid
@@ -141,13 +141,13 @@ PIPE_PUBLIC int pipe_mode(pipe_s const *ctx);
   @retval 0 invalid
   @retval !0 valid
 */
-PIPE_PUBLIC int pipe_valid(pipe_s const *ctx);
+PIPE_PUBLIC int pipe_valid(pipe_t const *ctx);
 
 /*!
  @brief flush standard stream for pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC int pipe_flush(pipe_s const *ctx);
+PIPE_PUBLIC int pipe_flush(pipe_t const *ctx);
 
 /*!
  @brief read a block of the standard output of the pipeline
@@ -156,7 +156,7 @@ PIPE_PUBLIC int pipe_flush(pipe_s const *ctx);
  @param byte length of a buffer
  @return size of the read data
 */
-PIPE_PUBLIC size_t pipe_read(pipe_s const *ctx, void *data, size_t byte);
+PIPE_PUBLIC size_t pipe_read(pipe_t const *ctx, void *data, size_t byte);
 
 /*!
  @brief read a block of the standard error output of the pipeline
@@ -165,7 +165,7 @@ PIPE_PUBLIC size_t pipe_read(pipe_s const *ctx, void *data, size_t byte);
  @param byte length of a buffer
  @return size of the read data
 */
-PIPE_PUBLIC size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte);
+PIPE_PUBLIC size_t pipe_reade(pipe_t const *ctx, void *data, size_t byte);
 
 /*!
  @brief write a block of the standard input to the pipeline
@@ -174,25 +174,25 @@ PIPE_PUBLIC size_t pipe_reade(pipe_s const *ctx, void *data, size_t byte);
  @param byte length of a buffer to write to the pipeline
  @return size of the written data
 */
-PIPE_PUBLIC size_t pipe_write(pipe_s const *ctx, void const *data, size_t byte);
+PIPE_PUBLIC size_t pipe_write(pipe_t const *ctx, void const *data, size_t byte);
 
 /*!
  @brief access a stream pointer to the standard input of the pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC FILE *pipe_stdin(pipe_s *ctx);
+PIPE_PUBLIC FILE *pipe_stdin(pipe_t *ctx);
 
 /*!
  @brief access a stream pointer to the standard output of the pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC FILE *pipe_stdout(pipe_s *ctx);
+PIPE_PUBLIC FILE *pipe_stdout(pipe_t *ctx);
 
 /*!
  @brief access a stream pointer to the standard error output of the pipeline
  @param[in] ctx points to an instance of pipeline structure
 */
-PIPE_PUBLIC FILE *pipe_stderr(pipe_s *ctx);
+PIPE_PUBLIC FILE *pipe_stderr(pipe_t *ctx);
 
 #if defined(__cplusplus)
 } /* extern "C" */

@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    pipe_s *ctx = (pipe_s *)malloc(sizeof(pipe_s) * n);
+    pipe_t *ctx = (pipe_t *)malloc(sizeof(pipe_t) * n);
     char *line = pipe_line_envp((char *[]){"/usr/local/bin", "/usr/bin", "/bin", 0});
     char *args[] = {argv[0], NULL};
     char *envp[] = {NULL};
@@ -86,9 +86,9 @@ int main(int argc, char *argv[])
     {
         char buffer[BUFSIZ];
         size_t size = pipe_read(ctx + i, buffer, BUFSIZ);
-        for (size_t j = 0; buffer[j] != '\n' && j < size; ++j)
+        for (size_t c = 0; buffer[c] != '\n' && c < size; ++c)
         {
-            putchar(buffer[j]);
+            putchar(buffer[c]);
         }
         putchar('\n');
     }
